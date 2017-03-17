@@ -56,9 +56,9 @@ int GFN_Train(GFN_Model & gfn, FloatMat & Samples, FloatMat & Labels)
 	// return negative for training error,
 	// return 0 for not trained,
 
-	if (gfn.FlagLearningMethod >= 0 && gfn.FlagLearningMethod <= gfn.LEARN_GDX)
+	if (gfn.FlagLearningMethod == gfn.LEARN_GD)
 	{
-		return FunctionGFN_Train_GDX(gfn, Samples, Labels);
+		return FunctionGFN_Train_GD(gfn, Samples, Labels);
 	}
 	else if (gfn.FlagLearningMethod == gfn.LEARN_LM)
 	{
@@ -82,7 +82,7 @@ int GFN_Test(GFN_Model & gfn, FloatMat & Samples, FloatMat & Labels)
 //
 
 // training functions
-int FunctionGFN_Train_GDX(GFN_Model & gfn, FloatMat & Samples, FloatMat & Labels)
+int FunctionGFN_Train_GD(GFN_Model & gfn, FloatMat & Samples, FloatMat & Labels)
 {
 	// return positive for trained as scheduled,
 	// return negative for training error,
@@ -93,14 +93,19 @@ int FunctionGFN_Train_GDX(GFN_Model & gfn, FloatMat & Samples, FloatMat & Labels
 	float delta = gfn.delta;
 	//
 	float lamda = gfn.lamda;   // momentum
+	float lamda_m = 1 - lamda;
 	//
 	int MaxIter = gfn.MaxIter;
 	float error_tol = gfn.error_tol;
 	float gradient_tol = gfn.gradient_tol;
 	//
+	float alpha_threshold = gfn.alpha_threshold;
+	//
 	//
 	int FlagErrBalance = gfn.FlagErrBalance;
-	int FlagLearningMethod = gfn.FlagLearningMethod;
+	//int FlagLearningMethod = gfn.FlagLearningMethod;
+	int FlagAlpha = gfn.FlagAlpha;
+	int FlagMomentum = gfn.FlagMomentum;
 	//
 	//float learning_portion = gfn.learning_portion;  // not used here
 	//int SeedLearning = gfn.SeedLearning;
@@ -109,8 +114,8 @@ int FunctionGFN_Train_GDX(GFN_Model & gfn, FloatMat & Samples, FloatMat & Labels
 	// log
 	char StrTemp[256];
 	//
-	sprintf(LogFileNameGFN, "LogTraining_%d_%d_%.6f_%.6f_%.6f_%.6f_%d_%d.txt",
-			FlagErrBalance, FlagLearningMethod, alpha, beta, delta, lamda, MaxIter, gfn.SeedLearning);
+	sprintf(LogFileNameGFN, "LogTrainingGD_%d_%d_%d_%.4f_%.4f_%.6f_%.2f_%d_%d.txt",
+			FlagErrBalance, FlagAlpha, FlagMomentum, alpha, beta, delta, lamda, MaxIter, gfn.SeedLearning);
 	//
 	createLogTrainingGFN();
 	//
@@ -211,11 +216,17 @@ int FunctionGFN_Train_GDX(GFN_Model & gfn, FloatMat & Samples, FloatMat & Labels
 		GradientS[layer].setMatSize(1, ArrayNumNodes[layer+1]);
 	}
 
-	// 惯性，指数平滑
+	// 惯性
 	FloatMat * deltaW;
 	FloatMat * deltaS;
+	float * ptr_momentum_swap;
 	//
-	if (FlagLearningMethod == gfn.LEARN_GDM || FlagLearningMethod == gfn.LEARN_GDX)
+	if (FlagMomentum == gfn.MOMENTUM_NONE)
+	{
+		deltaW = new FloatMat[1];
+		deltaS = new FloatMat[1];
+	}
+	else
 	{
 		deltaW = new FloatMat[NumMat];
 		deltaS = new FloatMat[NumMat];
@@ -228,11 +239,6 @@ int FunctionGFN_Train_GDX(GFN_Model & gfn, FloatMat & Samples, FloatMat & Labels
 			deltaW[layer].setMatConstant(0);
 			deltaS[layer].setMatConstant(0);
 		}
-	}
-	else
-	{
-		deltaW = new FloatMat[1];
-		deltaS = new FloatMat[1];
 	}
 
 	//
@@ -338,21 +344,23 @@ int FunctionGFN_Train_GDX(GFN_Model & gfn, FloatMat & Samples, FloatMat & Labels
 
 		// 梯度下降
 		//
-		// 步长, gda, gdx,
-		if (FlagLearningMethod == gfn.LEARN_GDX || FlagLearningMethod == gfn.LEARN_GDA)
+		if (alpha_t > alpha_threshold)
 		{
-			if (err < err_last) alpha_t += delta;
-			else alpha_t *= beta;
-			//
-			err_last = err;
+			if (FlagAlpha == gfn.ALPHA_DES)    // 步长，下降
+			{
+				alpha_t *= beta;
+			}
+			else if (FlagAlpha == gfn.ALPHA_ADA)   // 步长，自适应
+			{
+				if (err < err_last) alpha_t += delta;
+				else alpha_t *= beta;
+				//
+				err_last = err;
+			}
 		}
-		else  // gdd, gdm,
-		{
-			alpha_t *= beta;
-		}
+		//else alpha_t = alpha_threshold;
 		//
-		// 动量, gdm, gdx
-		if (FlagLearningMethod == gfn.LEARN_GDX || FlagLearningMethod == gfn.LEARN_GDM)
+		if (FlagMomentum == gfn.MOMENTUM_EXP)    // 动量，指数平滑，
 		{
 			for (int layer = NumM2; layer >= 0; layer--)
 			{
@@ -363,7 +371,25 @@ int FunctionGFN_Train_GDX(GFN_Model & gfn, FloatMat & Samples, FloatMat & Labels
 				gfn.Shifts[layer] = gfn.Shifts[layer] + deltaS[layer];
 			}
 		}
-		else // gdd, gda,
+		else if (FlagMomentum == gfn.MOMENTUM_PREV)    // 动量，两步合力，
+		{
+			for (int layer = NumM2; layer >= 0; layer--)
+			{
+				gfn.Weights[layer] = gfn.Weights[layer] - (GradientW[layer] * (lamda * alpha_t) + deltaW[layer] * (lamda_m * alpha_t));
+				gfn.Shifts[layer] = gfn.Shifts[layer] - (GradientS[layer] * (lamda * alpha_t) + deltaS[layer] * (lamda_m * alpha_t));
+
+				//
+				ptr_momentum_swap = deltaW[layer].data;
+				deltaW[layer].data = GradientW[layer].data;
+				GradientW[layer].data = ptr_momentum_swap;
+				//
+				ptr_momentum_swap = deltaS[layer].data;
+				deltaS[layer].data = GradientS[layer].data;
+				GradientS[layer].data = ptr_momentum_swap;
+				//
+			}
+		}
+		else // 无动量
 		{
 			for (int layer = NumM2; layer >= 0; layer--)
 			{
@@ -687,7 +713,7 @@ int Internal_DivideSamples_GFN(GFN_Model & gfn, FloatMat & Samples, FloatMat & L
 	int NumValidation = 0;
 	//
 	srand(gfn.SeedLearning);
-	int ThrRand = gfn.learning_portion * 1000;  //
+	int ThrRand = gfn.LearningPortion * 1000;  //
 	//
 	while (NumLearning == 0 || NumValidation == 0)
 	{

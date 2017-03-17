@@ -17,18 +17,20 @@ int FlagLoadFromFile;
 int FlagTraining;
 int FlagFiles;
 //
-int FlagBackupNetFile;
-//
+float LearningPortion;
 int SeedLearning;
 float Criteria;    // 0.95, 0.85, 0
 //
 int ErrBalance;
 int LearningMethod;
+int AlphaMethod;
+int MomentumMethod;
 //
 float alpha, beta, delta, lamda;
 //
 int SeedForRandom;
 int NumMaxIter;
+float AlphaThreshold;
 //
 int NumLayers;
 int * ArrayNumNodes;
@@ -59,7 +61,6 @@ int main()
 	printf("FlagLoadFromFile: %d\n", FlagLoadFromFile);
 	printf("FlagTraining: %d\n", FlagTraining);
 	printf("FlagFiles: %d\n", FlagFiles);
-	printf("FlagBackupNetFile: %d\n", FlagBackupNetFile);
 	printf("\n");
 	//
 	printf("SeedLearning: %d\n", SeedLearning);
@@ -68,11 +69,13 @@ int main()
 	//
 	printf("ErrBalance: %d\n", ErrBalance);
 	printf("LearningMethod: %d\n", LearningMethod);
-	printf("alpha, beta, delta, lamda: %.6f, %.6f, %.6f, %.6f,\n", alpha, beta, delta, lamda);
-	//printf("\n");
+	printf("AlphaMethod: %d\n", AlphaMethod);
+	printf("MomentumMethod: %d\n", MomentumMethod);
 	//
 	printf("SeedForRandom: %d\n", SeedForRandom);
 	printf("MaxIter: %d\n", NumMaxIter);
+	printf("AlphaThreshold: %.6f\n", AlphaThreshold);
+	printf("alpha, beta, delta, lamda: %.4f, %.4f, %.6f, %.2f,\n", alpha, beta, delta, lamda);
 	printf("\n");
 	//
 	printf("NumLayers: %d\n", NumLayers);
@@ -113,6 +116,8 @@ int main()
 	//
 	printf("initialized.\n");
 	//printf("\n");
+	//
+	//gfn.writeToFile("gfn_test.txt");
 	//
 	//
 	getchar();
@@ -229,13 +234,17 @@ int main()
 		//printf("\n");
 		printf("Training Process:\n");
 		//
+		gfn.LearningPortion = LearningPortion;
 		gfn.SeedLearning = SeedLearning;
 		gfn.CriteriaAssertion = Criteria;
 		//
 		gfn.FlagErrBalance = ErrBalance;
 		gfn.FlagLearningMethod = LearningMethod;
+		gfn.FlagAlpha = AlphaMethod;
+		gfn.FlagMomentum = MomentumMethod;
 		//
 		gfn.MaxIter = NumMaxIter;
+		gfn.alpha_threshold = AlphaThreshold;
 		//
 		//gfn.setTrainingParasDefault();
 		//
@@ -316,30 +325,30 @@ int main()
 	//
 
 	//
-	if (FlagBackupNetFile == 1)
+	char GFN_Backup_Filename[128];
+	if (FlagFiles == 1)
 	{
-		char GFN_Backup_Filename[128];
-		if (FlagFiles == 1)
-		{
-			sprintf(GFN_Backup_Filename, "GFN_File_Ascend_%.4f_%.4f_%d_%d_%d_%d_%d_%.6f_%.6f_%.6f_%.6f.txt",
-					gfn.performance[0], gfn.performance[1], SeedLearning, ErrBalance, LearningMethod, SeedForRandom, NumMaxIter,
-					alpha, beta, delta, lamda);
-		}
-		else if (FlagFiles == -1)
-		{
-			sprintf(GFN_Backup_Filename, "GFN_File_Descend_%.4f_%.4f_%d_%d_%d_%d_%d_%.6f_%.6f_%.6f_%.6f.txt",
-					gfn.performance[0], gfn.performance[1], SeedLearning, ErrBalance, LearningMethod, SeedForRandom, NumMaxIter,
-					alpha, beta, delta, lamda);
-		}
-		else
-		{
-			sprintf(GFN_Backup_Filename, "GFN_File_%.4f_%.4f_%d_%d_%d_%d_%d_%.6f_%.6f_%.6f_%.6f.txt",
-					gfn.performance[0], gfn.performance[1], SeedLearning, ErrBalance, LearningMethod, SeedForRandom, NumMaxIter,
-					alpha, beta, delta, lamda);
-		}
-
-		gfn.writeToFile(GFN_Backup_Filename);
+		sprintf(GFN_Backup_Filename, "GFN_File_Ascend_%.4f_%.4f_%d_%d_%d_%d_%d_%d_%d_%.4f_%.4f_%.6f_%.2f.txt",
+				gfn.performance[0], gfn.performance[1],
+				SeedLearning, ErrBalance, LearningMethod, AlphaMethod, MomentumMethod, SeedForRandom, NumMaxIter,
+				alpha, beta, delta, lamda);
 	}
+	else if (FlagFiles == -1)
+	{
+		sprintf(GFN_Backup_Filename, "GFN_File_Descend_%.4f_%.4f_%d_%d_%d_%d_%d_%d_%d_%.4f_%.4f_%.6f_%.2f.txt",
+				gfn.performance[0], gfn.performance[1],
+				SeedLearning, ErrBalance, LearningMethod, AlphaMethod, MomentumMethod, SeedForRandom, NumMaxIter,
+				alpha, beta, delta, lamda);
+	}
+	else
+	{
+		sprintf(GFN_Backup_Filename, "GFN_File_%.4f_%.4f_%d_%d_%d_%d_%d_%d_%d_%.4f_%.4f_%.6f_%.2f.txt",
+				gfn.performance[0], gfn.performance[1],
+				SeedLearning, ErrBalance, LearningMethod, AlphaMethod, MomentumMethod, SeedForRandom, NumMaxIter,
+				alpha, beta, delta, lamda);
+	}
+	//
+	gfn.writeToFile(GFN_Backup_Filename);
 	//
 
 	//
@@ -366,15 +375,18 @@ void loadConfiguration()
 	FlagTraining = 0;
 	FlagFiles = 0;
 	//
-	FlagBackupNetFile = 1;
-	//
+	LearningPortion = 0.7;
 	SeedLearning = 10;
 	Criteria = 0.50;
 	//
 	ErrBalance = 0;
 	LearningMethod = 0;
+	AlphaMethod = 0;
+	MomentumMethod = 0;
+	//
 	SeedForRandom = 10;
 	NumMaxIter = 100;
+	AlphaThreshold = 0.0002;
 	//
 	alpha = 0.001;
 	beta =0.999;
@@ -406,17 +418,21 @@ void loadConfiguration()
 		fprintf(fid, "FlagLoadFromFile: %d\n", FlagLoadFromFile);
 		fprintf(fid, "FlagTraining: %d\n", FlagTraining);
 		fprintf(fid, "FlagFiles: %d\n", FlagFiles);
-		fprintf(fid, "FlagBackupNetFile: %d\n", FlagBackupNetFile);
 		//
+		fprintf(fid, "LearningPortion: %.2f\n", LearningPortion);
 		fprintf(fid, "SeedLearning: %d\n", SeedLearning);
 		fprintf(fid, "Criteria: %.2f\n", Criteria);
 		//
 		fprintf(fid, "ErrBalance: %d\n", ErrBalance);
 		fprintf(fid, "LearningMethod: %d\n", LearningMethod);
+		fprintf(fid, "AlphaMethod: %d\n", AlphaMethod);
+		fprintf(fid, "MomentumMethod: %d\n", MomentumMethod);
+		//
 		fprintf(fid, "SeedForRandom: %d\n", SeedForRandom);
 		fprintf(fid, "MaxIter: %d\n", NumMaxIter);
+		fprintf(fid, "AlphaThreshold: %.6f\n", AlphaThreshold);
 		//
-		fprintf(fid, "TrainingParas: %.6f, %.6f, %.6f, %.6f,\n", alpha, beta, delta, lamda);
+		fprintf(fid, "TrainingParas: %.4f, %.4f, %.6f, %.2f,\n", alpha, beta, delta, lamda);
 		//
 		fprintf(fid, "NumLayers: %d\n", NumLayers);
 		//
@@ -469,9 +485,9 @@ void loadConfiguration()
 			{
 				sscanf(buff + curr, "%d", &FlagFiles);
 			}	
-			else if (strcmp(buff, "FlagBackupNetFile") == 0)
+			else if (strcmp(buff, "LearningPortion") == 0)
 			{
-				sscanf(buff + curr, "%d", &FlagBackupNetFile);
+				sscanf(buff + curr, "%f", &LearningPortion);
 			}
 			else if (strcmp(buff, "SeedLearning") == 0)            //
 			{
@@ -489,6 +505,14 @@ void loadConfiguration()
 			{
 				sscanf(buff + curr, "%d", &LearningMethod);
 			}
+			else if (strcmp(buff, "AlphaMethod") == 0)
+			{
+				sscanf(buff + curr, "%d", &AlphaMethod);
+			}
+			else if (strcmp(buff, "MomentumMethod") == 0)
+			{
+				sscanf(buff + curr, "%d", &MomentumMethod);
+			}
 			else if (strcmp(buff, "SeedForRandom") == 0)
 			{
 				sscanf(buff + curr, "%d", &SeedForRandom);
@@ -496,6 +520,10 @@ void loadConfiguration()
 			else if (strcmp(buff, "MaxIter") == 0)
 			{
 				sscanf(buff + curr, "%d", &NumMaxIter);
+			}
+			else if (strcmp(buff, "AlphaThreshold") == 0)
+			{
+				sscanf(buff + curr, "%f", &AlphaThreshold);
 			}
 			else if (strcmp(buff, "TrainingParas") == 0)         //
 			{
