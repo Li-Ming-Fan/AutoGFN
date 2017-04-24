@@ -918,6 +918,10 @@ int Internal_ValidationCheck_GFN(GFN_Model & gfn)
 	else gfn.performance[0] = 0;
 	//
 	gfn.performance[1] = 1.0 * TruePredictedPositive/PositiveTotal;
+	//
+	gfn.performance[2] = PositiveTotal;
+	gfn.performance[3] = PredictedPositive;
+	gfn.performance[4] = TruePredictedPositive;
 
 
 	return 1;

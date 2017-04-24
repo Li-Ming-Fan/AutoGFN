@@ -94,10 +94,6 @@ int main()
 	//
 
 	//
-	// Structure
-	//int NumLayers = 3;
-	//int ArrayNumNodes[3] = {90, 60, 2};
-	//
 	// model
 	GFN_Model gfn;
 	gfn.setStructureGFN(NumLayers, ArrayNumNodes);
@@ -123,7 +119,7 @@ int main()
 	getchar();
 	//
 
-	//
+	// files
 	char TrainingSamples_Filename[32];
 	char TrainingLabels_Filename[32];
 	char TestSamples_Filename[32];
@@ -168,53 +164,17 @@ int main()
 		strcpy(GFN_Filename, "GFN_File.txt");
 	}
 
-	//
-	// TrainingSamples
-	FloatMat TrainingSamples(1, ArrayNumNodes[0]);
-	//
-	TrainingSamples.loadAllDataInFile(TrainingSamples_Filename);
-	//
-	printf("TrainingSamples loaded.\n");
-	//
-	//TrainingSamples.display();
-	//
-	int NumRows, NumCols;
-	TrainingSamples.getMatSize(NumRows, NumCols);
-	printf("TrainingSamples NumRows: %d\n", NumRows);
-	//
-	//getchar();
-	//
-
-	// TrainingLabels
-	FloatMat TrainingLabels(1, ArrayNumNodes[NumLayers - 1]);
-	//
-	TrainingLabels.loadAllDataInFile(TrainingLabels_Filename);
-	//
-	printf("TrainingLabels loaded.\n");
-	//
-	//TrainingLabels.display();
-	//
-	TrainingLabels.getMatSize(NumRows, NumCols);
-	printf("TrainingLabels NumRows: %d\n", NumRows);
-	//
-	getchar();	
-	//
-
-	// Load
+	// Load model
 	if (FlagLoadFromFile == 1)
 	{
 		// load
 		int iLoad = gfn.loadFromFile(GFN_Filename);   //
 		if (iLoad == 0)
 		{
-			//printf("\n");
 			printf("Model Loaded from %s.\n", GFN_Filename);
-			//gfn.display();
-			//
 		}
 		else
 		{
-			//printf("\n");
 			printf("Error when loading model from %s.\n", GFN_Filename);
 		}
 		//
@@ -227,76 +187,91 @@ int main()
 		printf("\n");
 	}
 
+	// paras
+	gfn.LearningPortion = LearningPortion;
+	gfn.SeedLearning = SeedLearning;
+	gfn.CriteriaAssertion = Criteria;
+	//
+	gfn.FlagErrBalance = ErrBalance;
+	gfn.FlagLearningMethod = LearningMethod;
+	gfn.FlagAlpha = AlphaMethod;
+	gfn.FlagMomentum = MomentumMethod;
+	//
+	gfn.MaxIter = NumMaxIter;
+	gfn.alpha_threshold = AlphaThreshold;
+	//
+	//gfn.setTrainingParasDefault();
+	//
+	gfn.alpha = alpha;
+	gfn.beta = beta;
+	gfn.delta = delta;
+	gfn.lamda = lamda;
+	//
+
 	// Training
 	if (FlagTraining == 1)
 	{
+		printf("FlagTraining == 1.\n\n");
+		//
+		// TrainingSamples
+		FloatMat TrainingSamples(1, ArrayNumNodes[0]);
+		TrainingSamples.loadAllDataInFile(TrainingSamples_Filename);
+		printf("TrainingSamples loaded.\n");
+		//
+		int NumRows, NumCols;
+		TrainingSamples.getMatSize(NumRows, NumCols);
+		printf("TrainingSamples NumRows: %d\n", NumRows);
+		//
+		// TrainingLabels
+		FloatMat TrainingLabels(1, ArrayNumNodes[NumLayers - 1]);
+		TrainingLabels.loadAllDataInFile(TrainingLabels_Filename);
+		printf("TrainingLabels loaded.\n");
+		//
+		TrainingLabels.getMatSize(NumRows, NumCols);
+		printf("TrainingLabels NumRows: %d\n", NumRows);
+		//
+		getchar();
+		//
+
 		// Training Process
 		//printf("\n");
 		printf("Training Process:\n");
-		//
-		gfn.LearningPortion = LearningPortion;
-		gfn.SeedLearning = SeedLearning;
-		gfn.CriteriaAssertion = Criteria;
-		//
-		gfn.FlagErrBalance = ErrBalance;
-		gfn.FlagLearningMethod = LearningMethod;
-		gfn.FlagAlpha = AlphaMethod;
-		gfn.FlagMomentum = MomentumMethod;
-		//
-		gfn.MaxIter = NumMaxIter;
-		gfn.alpha_threshold = AlphaThreshold;
-		//
-		//gfn.setTrainingParasDefault();
-		//
-		gfn.alpha = alpha;
-		gfn.beta = beta;
-		gfn.delta = delta;
-		gfn.lamda = lamda;
 		//
 		GFN_Train(gfn, TrainingSamples, TrainingLabels);
 		//
 		gfn.writeToFile(GFN_Filename);
 		//
-
-		//
 		printf("\n");
+		printf("precision: %.4f\n", gfn.performance[0]);
+		printf("recall: %.4f\n", gfn.performance[1]);
+		printf("TruePositive: %.0f\n", gfn.performance[2]);
+		printf("PredictedPositive: %.0f\n", gfn.performance[3]);
+		printf("TruePredictedPositive: %.0f\n", gfn.performance[4]);
+		printf("\n");
+		//
 		printf("Training Process Ended, Model saved.\n");
 		//gfn.display();
 		//
-
-		//
-		getchar();
+		//getchar();
 		//
 	}
 	else
 	{
 		printf("FlagTraining == 0.\n\n");
-
 		//
 		// TestSamples
 		FloatMat TestSamples(1, ArrayNumNodes[0]);
-		//
 		TestSamples.loadAllDataInFile(TestSamples_Filename);
-		//
 		printf("TestSamples loaded.\n");
-		//
-		//TestSamples.display();
 		//
 		int NumRows, NumCols;
 		TestSamples.getMatSize(NumRows, NumCols);
 		printf("TestSamples NumRows: %d\n", NumRows);
 		//
-		//getchar();
-		//
-
 		// TestLabels
 		FloatMat TestLabels(1, ArrayNumNodes[NumLayers - 1]);
-		//
 		TestLabels.loadAllDataInFile(TestLabels_Filename);
-		//
 		printf("TestLabels loaded.\n");
-		//
-		//TestLabels.display();
 		//
 		TestLabels.getMatSize(NumRows, NumCols);
 		printf("TestLabels NumRows: %d\n", NumRows);
@@ -314,12 +289,14 @@ int main()
 		printf("\n");
 		printf("precision: %.4f\n", gfn.performance[0]);
 		printf("recall: %.4f\n", gfn.performance[1]);
+		printf("TruePositive: %.0f\n", gfn.performance[2]);
+		printf("PredictedPositive: %.0f\n", gfn.performance[3]);
+		printf("TruePredictedPositive: %.0f\n", gfn.performance[4]);
 		printf("\n");
 		//
 		printf("Test Process Ended.\n");
-
 		//
-		getchar();
+		//getchar();
 		//
 	}
 	//
